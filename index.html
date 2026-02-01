@@ -3,16 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>8-BIT SOLITAIRE v13</title>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1519394255615630"
-     crossorigin="anonymous"></script>
+<title>8-BIT SOLITAIRE v14</title>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1519394255615630" crossorigin="anonymous"></script>
+
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
     :root {
         --bg-color: #2c5c44;
-        --card-w: 55px;
-        --card-h: 85px;
-        --spacing: 10px;
+        
+        /* ▼▼▼ スマホで見切れないようにサイズを小さく修正しました ▼▼▼ */
+        --card-w: 46px;   /* 元:55px -> 46px */
+        --card-h: 70px;   /* 元:85px -> 70px */
+        --spacing: 6px;   /* 元:10px -> 6px */
+        /* ▲▲▲ 修正ここまで ▲▲▲ */
+        
         --text-color: #fff;
         /* 広告エリアの高さ確保 */
         --ad-height: 100px; 
@@ -71,7 +75,7 @@
     .slot {
         width: var(--card-w);
         height: var(--card-h);
-        border-radius: 6px;
+        border-radius: 4px; /* カードに合わせて少し小さく */
         position: relative;
         box-sizing: border-box;
     }
@@ -98,7 +102,7 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 24px;
+        font-size: 20px; /* 文字サイズ調整 */
         color: rgba(255,255,255,0.15);
         pointer-events: none;
     }
@@ -125,15 +129,15 @@
         width: var(--card-w);
         height: var(--card-h);
         background-color: #fff;
-        border-radius: 6px;
+        border-radius: 4px;
         position: absolute;
-        border: 3px solid #000; 
-        box-shadow: 3px 3px 0px rgba(0,0,0,0.3);
+        border: 2px solid #000; /* 線を少し細く */
+        box-shadow: 2px 2px 0px rgba(0,0,0,0.3);
         display: flex;
         justify-content: center;
         align-items: flex-start; 
-        padding-top: 8px; 
-        font-size: 16px;
+        padding-top: 4px; 
+        font-size: 14px; /* 文字サイズ調整 */
         z-index: 10;
         box-sizing: border-box;
         cursor: pointer;
@@ -159,8 +163,8 @@
     .card.back {
         background-color: #b71c1c;
         background-image: linear-gradient(45deg, #d32f2f 25%, transparent 25%), linear-gradient(-45deg, #d32f2f 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d32f2f 75%), linear-gradient(-45deg, transparent 75%, #d32f2f 75%);
-        background-size: 8px 8px;
-        border: 3px solid #fff;
+        background-size: 6px 6px; /* 模様を細かく */
+        border: 2px solid #fff;
         outline: 2px solid #000;
     }
     .card.back span { display: none; }
@@ -227,11 +231,14 @@
     .victory-btn:hover { background: #fff; color: #000; }
     @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
 
+    /* PCなど画面が大きいときは元の大きさに戻す設定 */
     @media (min-width: 600px) {
         :root { --card-w: 75px; --card-h: 110px; --spacing: 18px; }
-        .card { font-size: 24px; padding-top: 12px; border-width: 4px; }
+        .card { font-size: 24px; padding-top: 12px; border-width: 4px; box-shadow: 3px 3px 0px rgba(0,0,0,0.3); }
+        .card.back { border: 3px solid #fff; }
         #stock-area { min-width: calc(var(--card-w) * 2 + var(--spacing) + 60px); }
         .victory-title { font-size: 50px; }
+        .slot { border-radius: 6px; }
     }
 </style>
 </head>
@@ -333,7 +340,6 @@
 
     function updateControlsPosition() {
         const controls = document.getElementById('controls');
-        // 6列目と7列目を取得
         const col6 = document.querySelector('.column[data-id="5"]');
         const col7 = document.querySelector('.column[data-id="6"]');
         
@@ -355,10 +361,6 @@
             }
             if (bottom > maxBottom) maxBottom = bottom;
         });
-        
-        // 広告エリア（100px）があるので、ボタンが広告に被らないよう考慮
-        // 画面の高さ - 広告エリア - ボタンの高さよりも下に行き過ぎないようにする等の制御も本来は必要だが
-        // 今回はシンプルに「カードの下」かつ「最低位置保証」で配置
         
         const minHeight = 500; 
         const finalTop = Math.max(maxBottom, minHeight) + 20;
