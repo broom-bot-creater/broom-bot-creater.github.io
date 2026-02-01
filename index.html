@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>8-BIT SOLITAIRE v13</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg-color: #2c5c44;
+        --card-w: 55px;
+        --card-h: 85px;
+        --spacing: 10px;
+        --text-color: #fff;
+        /* 広告エリアの高さ確保 */
+        --ad-height: 100px; 
+    }
+
+    body {
+        background-color: var(--bg-color);
+        font-family: 'Press Start 2P', cursive;
+        margin: 0;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        user-select: none;
+        -webkit-user-select: none;
+        color: var(--text-color);
+        min-height: 100vh;
+        overflow-y: auto;
+        position: relative;
+        /* 下部に広告スペース分の余白を作る */
+        padding-bottom: calc(var(--ad-height) + 20px);
+        box-sizing: border-box;
+    }
+
+    /* フォント設定 */
+    button, .victory-msg, .ad-placeholder {
+        font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+        font-weight: bold;
+    }
+    .card, .victory-title, .slot[data-type="foundation"]::before {
+        font-family: 'Press Start 2P', cursive;
+    }
+
+    #top-row {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 480px;
+        margin-bottom: 20px;
+        height: var(--card-h);
+        flex-shrink: 0;
+    }
+
+    .group {
+        display: flex;
+        gap: var(--spacing);
+        position: relative;
+    }
+
+    #stock-area {
+        min-width: calc(var(--card-w) * 2 + var(--spacing) + 40px);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .slot {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: 6px;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    .foundation, .stock, .waste {
+        border: 2px dashed rgba(255,255,255,0.3);
+    }
+
+    .tableau {
+        border: none;
+        background: none;
+    }
+
+    #waste {
+        border: none;
+        position: relative;
+        width: var(--card-w);
+        margin-right: var(--spacing);
+    }
+
+    .slot[data-type="foundation"]::before {
+        content: attr(data-mark);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: rgba(255,255,255,0.15);
+        pointer-events: none;
+    }
+
+    #tableau {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing);
+        width: 100%;
+        max-width: 480px;
+        height: auto;
+        min-height: 500px; 
+        position: relative;
+    }
+
+    .column {
+        width: var(--card-w);
+        position: relative;
+        min-height: 100px;
+        border: none;
+    }
+
+    .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        background-color: #fff;
+        border-radius: 6px;
+        position: absolute;
+        border: 3px solid #000; 
+        box-shadow: 3px 3px 0px rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; 
+        padding-top: 8px; 
+        font-size: 16px;
+        z-index: 10;
+        box-sizing: border-box;
+        cursor: pointer;
+    }
+    
+    .card::after {
+        content: ''; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px; z-index: 1;
+    }
+
+    #waste .card { position: absolute; top: 0; }
+
+    .card.dragging {
+        opacity: 0.9;
+        z-index: 9999 !important;
+        box-shadow: 8px 8px 15px rgba(0,0,0,0.6);
+        transform: scale(1.1);
+        pointer-events: none;
+    }
+
+    .card.red { color: #d32f2f; }
+    .card.black { color: #212121; }
+
+    .card.back {
+        background-color: #b71c1c;
+        background-image: linear-gradient(45deg, #d32f2f 25%, transparent 25%), linear-gradient(-45deg, #d32f2f 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d32f2f 75%), linear-gradient(-45deg, transparent 75%, #d32f2f 75%);
+        background-size: 8px 8px;
+        border: 3px solid #fff;
+        outline: 2px solid #000;
+    }
+    .card.back span { display: none; }
+
+    /* --- ボタンエリア --- */
+    #controls {
+        position: absolute;
+        display: flex;
+        gap: 10px;
+        z-index: 100;
+        transition: top 0.2s ease-out;
+        padding-bottom: 20px; 
+    }
+
+    button {
+        background: #000;
+        color: #fff;
+        border: 2px solid #fff;
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+        white-space: nowrap;
+    }
+    button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* --- 広告エリア --- */
+    #ad-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: var(--ad-height);
+        background-color: rgba(0,0,0,0.8);
+        z-index: 5000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-top: 2px solid #fff;
+    }
+
+    .ad-placeholder {
+        color: #aaa;
+        font-size: 12px;
+        text-align: center;
+    }
+
+    #victory-screen {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 10000;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+    .victory-title { font-size: 30px; color: #ffeb3b; text-shadow: 4px 4px #d32f2f; margin-bottom: 20px; animation: bounce 1s infinite alternate; }
+    .victory-msg { font-size: 16px; color: #fff; margin-bottom: 40px; line-height: 1.5; }
+    .victory-btns { display: flex; gap: 20px; }
+    .victory-btn { padding: 15px 25px; font-size: 16px; border: 4px solid #fff; background: #2c5c44; color: #fff; }
+    .victory-btn:hover { background: #fff; color: #000; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+    @media (min-width: 600px) {
+        :root { --card-w: 75px; --card-h: 110px; --spacing: 18px; }
+        .card { font-size: 24px; padding-top: 12px; border-width: 4px; }
+        #stock-area { min-width: calc(var(--card-w) * 2 + var(--spacing) + 60px); }
+        .victory-title { font-size: 50px; }
+    }
+</style>
+</head>
+<body>
+
+    <div id="top-row">
+        <div class="group" id="foundations">
+            <div class="slot foundation" data-type="foundation" data-id="0" data-mark="A♠"></div>
+            <div class="slot foundation" data-type="foundation" data-id="1" data-mark="A♥"></div>
+            <div class="slot foundation" data-type="foundation" data-id="2" data-mark="A♣"></div>
+            <div class="slot foundation" data-type="foundation" data-id="3" data-mark="A♦"></div>
+        </div>
+        <div class="group" id="stock-area">
+            <div class="slot waste" id="waste" data-type="waste"></div>
+            <div class="slot stock" id="stock" data-type="stock"></div>
+        </div>
+    </div>
+
+    <div id="tableau">
+        <div class="column slot tableau" data-type="tableau" data-id="0"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="1"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="2"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="3"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="4"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="5"></div>
+        <div class="column slot tableau" data-type="tableau" data-id="6"></div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-reset" onclick="initGame()">リセット</button>
+        <button id="btn-undo" onclick="undo()">一つ戻す</button>
+    </div>
+
+    <div id="ad-container">
+        <div class="ad-placeholder">広告スペース<br>(AdSense等のバナーを配置)</div>
+    </div>
+
+    <div id="victory-screen">
+        <div class="victory-title">CONGRATULATIONS!</div>
+        <div class="victory-msg">ゲームクリア！<br>おめでとうございます！</div>
+        <div class="victory-btns">
+            <button class="victory-btn" onclick="initGame()">もう一度</button>
+            <button class="victory-btn" onclick="quitGame()">終わる</button>
+        </div>
+    </div>
+
+<script>
+    const SUITS = ['♠', '♥', '♣', '♦'];
+    const COLORS = {'♠':'black', '♥':'red', '♣':'black', '♦':'red'};
+    const NUMBERS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    
+    let deck = [], stock = [], waste = [], foundations = [[], [], [], []], tableau = [[], [], [], [], [], [], []];
+    let historyStack = [];
+    
+    let isDragging = false;
+    let isAutoPlaying = false;
+    let dragItem = null;
+    let dragOffset = { x: 0, y: 0 };
+    let dragStartPos = { x: 0, y: 0 };
+    let currentDroppable = null;
+    let lastTap = 0;
+
+    function createDeck() {
+        let d = [];
+        SUITS.forEach(s => NUMBERS.forEach((n, i) => d.push({ suit: s, num: i + 1, text: n, color: COLORS[s], faceUp: false })));
+        return shuffle(d);
+    }
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
+        return array;
+    }
+    function saveState() {
+        if(isAutoPlaying) return;
+        const state = JSON.stringify({ stock, waste, foundations, tableau });
+        historyStack.push(state);
+        if(historyStack.length > 50) historyStack.shift();
+    }
+    function undo() {
+        if(isAutoPlaying) return;
+        if (historyStack.length === 0) return;
+        const state = JSON.parse(historyStack.pop());
+        stock = state.stock; waste = state.waste; foundations = state.foundations; tableau = state.tableau;
+        render();
+    }
+    function initGame() {
+        document.getElementById('victory-screen').style.display = 'none';
+        isAutoPlaying = false;
+        document.getElementById('btn-undo').disabled = false;
+        deck = createDeck(); stock = [...deck]; waste = []; foundations = [[], [], [], []]; tableau = [[], [], [], [], [], [], []];
+        historyStack = [];
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j <= i; j++) {
+                let card = stock.pop(); if (j === i) card.faceUp = true; tableau[i].push(card);
+            }
+        }
+        render();
+        setTimeout(updateControlsPosition, 0);
+    }
+
+    function updateControlsPosition() {
+        const controls = document.getElementById('controls');
+        // 6列目と7列目を取得
+        const col6 = document.querySelector('.column[data-id="5"]');
+        const col7 = document.querySelector('.column[data-id="6"]');
+        
+        if (!col7 || !controls) return;
+
+        const col7Rect = col7.getBoundingClientRect();
+        const leftPos = col7Rect.left + window.scrollX;
+
+        let maxBottom = 0;
+        
+        [col6, col7].forEach(col => {
+            if(!col) return;
+            const lastCard = col.lastElementChild;
+            const rect = col.getBoundingClientRect();
+            let bottom = rect.top + window.scrollY + 85; 
+            if (lastCard && lastCard.classList.contains('card')) {
+                 const cardRect = lastCard.getBoundingClientRect();
+                 bottom = cardRect.bottom + window.scrollY;
+            }
+            if (bottom > maxBottom) maxBottom = bottom;
+        });
+        
+        // 広告エリア（100px）があるので、ボタンが広告に被らないよう考慮
+        // 画面の高さ - 広告エリア - ボタンの高さよりも下に行き過ぎないようにする等の制御も本来は必要だが
+        // 今回はシンプルに「カードの下」かつ「最低位置保証」で配置
+        
+        const minHeight = 500; 
+        const finalTop = Math.max(maxBottom, minHeight) + 20;
+
+        controls.style.left = (leftPos - 30) + 'px'; 
+        controls.style.top = finalTop + 'px';
+    }
+
+    window.addEventListener('resize', updateControlsPosition);
+
+    function render() {
+        document.querySelectorAll('.card.dragging').forEach(el => el.remove());
+
+        const stockEl = document.getElementById('stock');
+        stockEl.innerHTML = stock.length ? '' : '<span style="font-size:24px; color:#fff; opacity:0.5; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);">↺</span>';
+        if (stock.length) stockEl.appendChild(createCardDiv(null, false));
+
+        const wasteEl = document.getElementById('waste'); 
+        wasteEl.innerHTML = '';
+        const showCount = 3;
+        const startIndex = Math.max(0, waste.length - showCount);
+        const visibleWaste = waste.slice(startIndex);
+        visibleWaste.forEach((card, i) => {
+            const realIdx = startIndex + i;
+            const isTop = (realIdx === waste.length - 1);
+            let div = createCardDiv(card, true, 'waste', 0, realIdx);
+            div.style.left = (i * 20) + 'px';
+            div.style.zIndex = i;
+            if (!isTop) div.style.pointerEvents = 'none';
+            wasteEl.appendChild(div);
+        });
+
+        for (let i = 0; i < 4; i++) {
+            const fEl = document.querySelector(`.slot[data-type="foundation"][data-id="${i}"]`);
+            fEl.innerHTML = '';
+            if (foundations[i].length) fEl.appendChild(createCardDiv(foundations[i][foundations[i].length - 1], true, 'foundation', i, foundations[i].length-1));
+        }
+
+        for (let i = 0; i < 7; i++) {
+            const colEl = document.querySelector(`.column[data-type="tableau"][data-id="${i}"]`);
+            colEl.innerHTML = '';
+            tableau[i].forEach((card, idx) => {
+                let div = createCardDiv(card, card.faceUp, 'tableau', i, idx);
+                div.style.top = (idx * 35) + 'px'; 
+                colEl.appendChild(div);
+            });
+        }
+        
+        if(!isAutoPlaying) setupDragEvents();
+        updateControlsPosition();
+    }
+
+    function createCardDiv(card, faceUp, loc, col, idx) {
+        const div = document.createElement('div');
+        div.className = 'card';
+        if (!faceUp) div.classList.add('back');
+        else {
+            div.classList.add(card.color);
+            div.innerHTML = `<span>${card.text}<br>${card.suit}</span>`;
+            div.dataset.loc = loc; div.dataset.col = col; div.dataset.idx = idx;
+        }
+        return div;
+    }
+
+    function setupDragEvents() {
+        const stockEl = document.getElementById('stock');
+        stockEl.onclick = clickStock;
+
+        document.querySelectorAll('.card:not(.back)').forEach(cardEl => {
+            if(cardEl.dataset.loc === 'foundation') return;
+            cardEl.addEventListener('mousedown', onPointerDown);
+            cardEl.addEventListener('touchstart', onPointerDown, {passive: false});
+            cardEl.addEventListener('dblclick', onDoubleClick);
+            cardEl.addEventListener('touchend', (e) => {
+                if (isDragging) return;
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 400 && tapLength > 0) {
+                    onDoubleClick(e);
+                    e.preventDefault();
+                }
+                lastTap = currentTime;
+            });
+        });
+    }
+
+    function checkAutoWin() {
+        if (stock.length > 0) return;
+        if (waste.length > 0) return;
+        for(let col of tableau) {
+            for(let card of col) {
+                if(!card.faceUp) return;
+            }
+        }
+        if(!isAutoPlaying) {
+            startAutoPlay();
+        }
+    }
+
+    function startAutoPlay() {
+        isAutoPlaying = true;
+        document.getElementById('btn-undo').disabled = true;
+        setTimeout(autoPlayStep, 100);
+    }
+
+    function autoPlayStep() {
+        if(!isAutoPlaying) return;
+        let moved = false;
+        for(let c=0; c<7; c++) {
+            if (tableau[c].length === 0) continue;
+            let card = tableau[c][tableau[c].length - 1];
+            for(let f=0; f<4; f++) {
+                const targetStack = foundations[f];
+                const topCard = targetStack.length > 0 ? targetStack[targetStack.length-1] : null;
+                let canMove = false;
+                if(!topCard) { if(card.num === 1) canMove = true; } 
+                else { if(card.suit === topCard.suit && card.num === topCard.num + 1) canMove = true; }
+                if(canMove) {
+                    tableau[c].pop();
+                    foundations[f].push(card);
+                    moved = true;
+                    render();
+                    break;
+                }
+            }
+            if(moved) break;
+        }
+        checkWin();
+        if(moved) {
+            setTimeout(autoPlayStep, 100);
+        }
+    }
+
+    function clickStock() {
+        if(isAutoPlaying) return;
+        saveState();
+        if (stock.length === 0) {
+            stock = [...waste].reverse(); 
+            stock.forEach(c => c.faceUp = false);
+            waste = [];
+        } else {
+            const count = Math.min(3, stock.length);
+            for(let i=0; i<count; i++) {
+                let card = stock.pop();
+                card.faceUp = true;
+                waste.push(card);
+            }
+        }
+        render();
+        checkAutoWin();
+    }
+
+    function onPointerDown(e) {
+        if(isAutoPlaying) return;
+        if(e.type === 'touchstart') e.preventDefault();
+        
+        const target = e.target.closest('.card');
+        if (!target || !target.dataset.loc) return;
+
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+        dragStartPos = { x: clientX, y: clientY };
+        isDragging = false;
+
+        document.addEventListener('mousemove', onPointerMove);
+        document.addEventListener('touchmove', onPointerMove, {passive: false});
+        document.addEventListener('mouseup', onPointerUp);
+        document.addEventListener('touchend', onPointerUp);
+
+        const rect = target.getBoundingClientRect();
+        dragOffset = { x: clientX - rect.left, y: clientY - rect.top };
+        
+        const loc = target.dataset.loc;
+        const col = parseInt(target.dataset.col);
+        const idx = parseInt(target.dataset.idx);
+        let cardsData = [];
+        if(loc === 'waste') {
+            if(idx !== waste.length - 1) return; 
+            cardsData = [waste[idx]];
+        }
+        else if(loc === 'tableau') cardsData = tableau[col].slice(idx);
+        else return;
+
+        dragItem = { cardEl: target, source: {loc, col, idx}, cardsData: cardsData };
+    }
+
+    function onPointerMove(e) {
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+        if (!isDragging) {
+            const dx = clientX - dragStartPos.x;
+            const dy = clientY - dragStartPos.y;
+            if (Math.sqrt(dx*dx + dy*dy) > 5) {
+                startDrag(clientX, clientY);
+            }
+        }
+
+        if (isDragging && dragItem) {
+            if(e.type.startsWith('touch')) e.preventDefault();
+            moveAt(clientX, clientY);
+            
+            dragItem.cardEl.style.display = 'none'; 
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            dragItem.cardEl.style.display = 'flex'; 
+
+            if (!elemBelow) return;
+            let droppableBelow = elemBelow.closest('.slot, .card');
+
+            if (currentDroppable != droppableBelow) {
+                currentDroppable = droppableBelow;
+            }
+        }
+    }
+
+    function startDrag(clientX, clientY) {
+        isDragging = true;
+        if(dragItem.source.loc === 'tableau' && dragItem.cardsData.length > 1) {
+            dragItem.followingEls = [];
+            let nextIdx = dragItem.source.idx + 1;
+            let nextCardEl = dragItem.cardEl.parentElement.querySelector(`.card[data-idx="${nextIdx}"]`);
+            while(nextCardEl) {
+                dragItem.followingEls.push({el: nextCardEl, offsetY: (nextIdx - dragItem.source.idx) * 35});
+                nextCardEl.classList.add('dragging');
+                nextIdx++;
+                nextCardEl = dragItem.cardEl.parentElement.querySelector(`.card[data-idx="${nextIdx}"]`);
+            }
+        }
+        dragItem.cardEl.classList.add('dragging');
+        document.body.appendChild(dragItem.cardEl);
+        if(dragItem.followingEls) dragItem.followingEls.forEach(item => document.body.appendChild(item.el));
+        
+        moveAt(clientX, clientY);
+    }
+
+    function moveAt(pageX, pageY) {
+        dragItem.cardEl.style.left = pageX - dragOffset.x + 'px';
+        dragItem.cardEl.style.top = pageY - dragOffset.y + 'px';
+        if(dragItem.followingEls) {
+            dragItem.followingEls.forEach(item => {
+                item.el.style.left = pageX - dragOffset.x + 'px';
+                item.el.style.top = pageY - dragOffset.y + item.offsetY + 'px';
+            });
+        }
+    }
+
+    function onPointerUp(e) {
+        document.removeEventListener('mousemove', onPointerMove);
+        document.removeEventListener('touchmove', onPointerMove);
+        document.removeEventListener('mouseup', onPointerUp);
+        document.removeEventListener('touchend', onPointerUp);
+
+        if (isDragging) {
+            if(dragItem.cardEl && dragItem.cardEl.parentNode === document.body) {
+                document.body.removeChild(dragItem.cardEl);
+            }
+            if(dragItem.followingEls) {
+                dragItem.followingEls.forEach(item => {
+                    if(item.el && item.el.parentNode === document.body) document.body.removeChild(item.el);
+                });
+            }
+
+            let dropped = false;
+            if (currentDroppable && checkDroppable(currentDroppable)) dropped = executeDrop(currentDroppable);
+            if (!dropped) render();
+        }
+        
+        isDragging = false;
+        dragItem = null;
+        currentDroppable = null;
+    }
+
+    function onDoubleClick(e) {
+        if(isAutoPlaying) return;
+        const target = e.target.closest('.card');
+        if(!target || target.classList.contains('back')) return;
+        
+        const loc = target.dataset.loc;
+        const col = parseInt(target.dataset.col);
+        const idx = parseInt(target.dataset.idx);
+        let cardData;
+
+        if(loc === 'waste') {
+             if(idx !== waste.length -1) return;
+             cardData = waste[idx];
+        } else if(loc === 'tableau') {
+             if(idx !== tableau[col].length -1) return;
+             cardData = tableau[col][idx];
+        } else return;
+
+        for(let i=0; i<4; i++) {
+            const targetStack = foundations[i];
+            const topCard = targetStack.length > 0 ? targetStack[targetStack.length-1] : null;
+            let canMove = false;
+            if(!topCard) { if(cardData.num === 1) canMove = true; } 
+            else { if(cardData.suit === topCard.suit && cardData.num === topCard.num + 1) canMove = true; }
+            
+            if(canMove) {
+                saveState();
+                if(loc==='waste') waste.pop();
+                else {
+                    tableau[col].pop();
+                    if(tableau[col].length && !tableau[col][tableau[col].length-1].faceUp) {
+                        tableau[col][tableau[col].length-1].faceUp = true;
+                    }
+                }
+                foundations[i].push(cardData);
+                render(); 
+                checkWin();
+                checkAutoWin();
+                return;
+            }
+        }
+    }
+
+    function checkDroppable(targetEl) {
+        const headCard = dragItem.cardsData[0];
+        const targetType = targetEl.dataset.type || (targetEl.classList.contains('card') ? targetEl.parentElement.dataset.type : null);
+        const targetId = parseInt(targetEl.dataset.id || targetEl.parentElement.dataset.id);
+
+        if (targetType === 'foundation') {
+            if(dragItem.cardsData.length > 1) return false;
+            const targetStack = foundations[targetId];
+            const topCard = targetStack.length > 0 ? targetStack[targetStack.length - 1] : null;
+            if (!topCard) return headCard.num === 1;
+            return headCard.suit === topCard.suit && headCard.num === topCard.num + 1;
+        }
+        if (targetType === 'tableau') {
+            const targetCol = tableau[targetId];
+            if (targetCol.length === 0) return headCard.num === 13;
+            const topCard = targetCol[targetCol.length - 1];
+            if(targetEl.classList.contains('card') && parseInt(targetEl.dataset.idx) !== targetCol.length -1) return false;
+            return headCard.color !== topCard.color && headCard.num === topCard.num - 1;
+        }
+        return false;
+    }
+
+    function executeDrop(targetEl) {
+        saveState();
+        if (dragItem.source.loc === 'waste') waste.pop();
+        else {
+            let col = tableau[dragItem.source.col];
+            col.splice(dragItem.source.idx, dragItem.cardsData.length);
+            if (col.length > 0 && !col[col.length-1].faceUp) col[col.length-1].faceUp = true;
+        }
+
+        const targetType = targetEl.dataset.type || targetEl.parentElement.dataset.type;
+        const targetId = parseInt(targetEl.dataset.id || targetEl.parentElement.dataset.id);
+
+        if (targetType === 'foundation') foundations[targetId].push(dragItem.cardsData[0]);
+        else if (targetType === 'tableau') tableau[targetId] = tableau[targetId].concat(dragItem.cardsData);
+        
+        render(); 
+        checkWin();
+        checkAutoWin();
+        return true;
+    }
+
+    function checkWin() {
+        let count = 0; foundations.forEach(f => count += f.length);
+        if (count === 52) {
+            setTimeout(() => {
+                document.getElementById('victory-screen').style.display = 'flex';
+            }, 300);
+        }
+    }
+
+    function quitGame() {
+        window.close();
+        alert("ブラウザのセキュリティ制限によりウィンドウを閉じられませんでした。\n手動でタブを閉じてください。");
+    }
+
+    initGame();
+</script>
+</body>
+</html>
